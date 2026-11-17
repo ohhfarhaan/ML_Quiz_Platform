@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ML Lab Study Notes</title>
+  <meta name="description" content="Short revision notes for all 10 UE24CS352A ML lab programs: concepts, formulas, code and exam traps.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📘</text></svg>">
+  <style>
+    .notes h2 { margin-top: 0; font-size: 22px; letter-spacing: -.01em; }
+    .notes section { scroll-margin-top: 70px; margin: 18px 0; }
+    .notes h3 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); margin: 16px 0 6px; }
+    .notes ul { margin: 4px 0 8px; padding-left: 20px; }
+    .notes li { margin: 3px 0; }
+    .notes p { margin: 6px 0; }
+    .formula { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 14px; background: var(--surface-2); border-radius: 8px; padding: 8px 12px; margin: 6px 0; overflow-x: auto; white-space: pre; }
+    .trap { border-left: 4px solid var(--warn); background: var(--surface-2); padding: 8px 12px; border-radius: 8px; margin: 10px 0 2px; font-size: 15px; }
+    .trap b { color: var(--warn); }
+    .toc { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); gap: 8px; }
+    .toc a { display: block; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); text-decoration: none; font-size: 15px; }
+    .toc a:hover { border-color: var(--accent); }
+    .toc a span { color: var(--muted); font-size: 13px; display: block; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 8px 0; }
+    th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background: var(--surface-2); }
+    .tablewrap { overflow-x: auto; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 22px; }
+    .actions a { text-decoration: none; }
+    .back { font-size: 14px; }
+    @media print {
+      :root { --bg:#fff; --surface:#fff; --surface-2:#f2f3f7; --text:#111; --muted:#555; --border:#ddd; --accent:#3b35c9; --warn:#a15c00; --shadow:none; }
+      .topbar, .actions, .foot, .back, .noprint { display: none !important; }
+      body { font-size: 12px; background: #fff; }
+      .container { max-width: none; padding: 0; }
+      .card { box-shadow: none; padding: 12px 14px; break-inside: auto; }
+      .notes section { page-break-before: always; margin: 0; }
+      .notes section:first-of-type { page-break-before: auto; }
+      .formula, .trap, table, pre { break-inside: avoid; }
+      .formula { font-size: 11px; }
+      h1 { font-size: 24px; }
+      .toc a { padding: 6px 8px; }
+    }
+  </style>
+</head>
+<body>
+<header class="topbar">
+  <a href="./" class="brand">🧠 ML Lab Quiz Prep</a>
+  <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">◐</button>
+</header>
+<main class="container notes">
+  <a class="back" href="./">← Back to quiz</a>
+  <h1>📘 ML Lab Study Notes</h1>
+  <p class="sub">Every lab in a few minutes: what it does, the key concepts and formulas, the exact code details and the usual traps. Read a section, then drill that lab in the quiz.</p>
+  <div class="actions">
+    <a class="btn primary" href="ML_Lab_Notes.pdf" download>⬇ Download PDF</a>
+    <a class="btn" href="./">🧠 Practice MCQs</a>
+  </div>
+
+  <div class="card">
+    <b>Contents</b>
+    <div class="toc" style="margin-top:10px">
+      <a href="#eda">1 · EDA & Data Quality<span>StayEase hotel bookings</span></a>
+      <a href="#torch">2 · PyTorch Tensors<span>creation, broadcasting, shapes</span></a>
+      <a href="#dt">3 · Decision Trees<span>Gini, entropy, depth, pruning</span></a>
+      <a href="#knn">4 · Model Selection<span>kNN vs DT, Grid/Random search</span></a>
+      <a href="#logreg">5 · Logistic Regression<span>sigmoid, thresholds, metrics</span></a>
+      <a href="#ann">6 · ANN from Scratch<span>ReLU, Xavier, backprop</span></a>
+      <a href="#nb">7 · Naive Bayes<span>smoothing, TF-IDF, Bayes optimal</span></a>
+      <a href="#svm">8 · SVM<span>kernels, hard vs soft margin</span></a>
+      <a href="#hmm">9 · Hidden Markov Models<span>Viterbi, forward algorithm</span></a>
+      <a href="#cnn">10 · CNN<span>Rock-Paper-Scissors in PyTorch</span></a>
+      <a href="#metrics">★ Metrics cheat-sheet<span>used in almost every lab</span></a>
+    </div>
+  </div>
+
+  <!-- ───────── 1 EDA ───────── -->
+  <section id="eda" class="card">
+    <h2>1 · EDA & Data Quality (StayEase Booking Analytics)</h2>
+    <p><b>Goal:</b> act as a junior data analyst. Investigate hotel booking data, find data-quality issues, clean it, find patterns (cancellations, seasons, pricing, channels) and recommend business actions. No fixed procedure: <i>every decision must be justified with evidence</i>.</p>
+    <h3>Dataset columns (examples)</h3>
+    <p><code>hotel_type</code>, <code>booking_status</code>, <code>advance_booking_days</code>, <code>arrival_month</code>, <code>weekend_nights</code>, <code>weekday_nights</code>, <code>num_adults/children/infants</code>, <code>meal_plan</code>, <code>booking_channel</code>, <code>is_repeated_guest</code>, <code>deposit_type</code>, <code>travel_agent_id</code>, <code>avg_daily_rate</code>, <code>reservation_status</code>, derived: <code>total_stay_nights</code>, <code>total_guests</code>, <code>booking_season</code>, <code>is_long_stay</code>.</p>
+    <h3>Attribute types</h3>
+    <div class="tablewrap"><table>
+      <tr><th>Type</th><th>Meaning</th><th>Example</th></tr>
+      <tr><td>Nominal</td><td>categories, no order</td><td>hotel_type, booking_channel, guest_country</td></tr>
+      <tr><td>Ordinal</td><td>ordered categories</td><td>arrival_month, booking_season</td></tr>
+      <tr><td>Binary</td><td>two values</td><td>is_repeated_guest, family_booking</td></tr>
+      <tr><td>Discrete numeric</td><td>counts</td><td>num_adults, special_requests</td></tr>
+      <tr><td>Continuous numeric</td><td>any real value</td><td>avg_daily_rate</td></tr>
+    </table></div>
+    <h3>Data-quality issues → treatment</h3>
+    <ul>
+      <li><b>Missing numeric:</b> median if skewed or outliers, mean if symmetric. <b>Missing categorical:</b> mode, or an "Unknown" category.</li>
+      <li><b>Structurally missing</b> (e.g. <code>travel_agent_id</code> blank = no agent): fill with "No Agent". Don't drop the rows.</li>
+      <li><b>Duplicates:</b> <code>df.duplicated().sum()</code> then <code>drop_duplicates()</code>.</li>
+      <li><b>Outliers:</b> IQR rule. Outside <code>[Q1 − 1.5·IQR, Q3 + 1.5·IQR]</code>. Cap, transform (log) or investigate.</li>
+      <li><b>Invalid/inconsistent:</b> 0 guests, negative rate, reserved ≠ assigned room. Check with domain logic.</li>
+      <li><b>Leakage:</b> <code>reservation_status</code> already encodes cancellation. Never use it to predict <code>booking_status</code>.</li>
+    </ul>
+    <h3>Pandas toolkit</h3>
+    <div class="formula">df.shape  df.info()  df.describe()  df.isnull().sum()  df.duplicated().sum()
+df['col'].value_counts()  df.groupby('channel')['booking_status'].mean()  df.corr(numeric_only=True)</div>
+    <h3>Which plot?</h3>
+    <ul>
+      <li>1 numeric → histogram / KDE / box plot. 1 categorical → bar / countplot.</li>
+      <li>numeric vs numeric → scatter; many numerics → correlation heatmap.</li>
+      <li>category vs category (e.g. channel vs cancelled) → grouped / stacked bar (<code>hue=</code>).</li>
+      <li>trend over months → line chart. numeric by category → box / violin plot.</li>
+    </ul>
+    <h3>Statistics</h3>
+    <ul>
+      <li>Mean &gt; median → <b>right skew</b>; mean &lt; median → left skew.</li>
+      <li>Pearson r ∈ [−1, 1] measures <i>linear</i> association only. <b>Correlation ≠ causation.</b></li>
+      <li>Box plot = min, Q1, median, Q3, max (five-number summary) + outliers.</li>
+    </ul>
+    <p><b>Deliverables:</b> notebook, a 5–8 page analyst report (exec summary → recommendations → limitations), a decision log (Decision | Reason | Evidence | Alternative) and a visualization portfolio.</p>
+  </section>
+
+  <!-- ───────── 2 TORCH ───────── -->
+  <section id="torch" class="card">
+    <h2>2 · PyTorch Basics: Tensors</h2>
+    <p>Tensors are multi-dimensional arrays like NumPy's, but with GPU support and autograd. They live on the <b>CPU by default</b>.</p>
+    <h3>Creation</h3>
+    <div class="formula">torch.tensor([[1,2],[3,4]])     # from data → dtype int64
+torch.from_numpy(np_arr)        # SHARES memory with numpy
+torch.ones_like(x) / rand_like(x, dtype=torch.float)  # keeps shape (and dtype unless overridden)
+torch.ones(2,3) torch.zeros(2,3) torch.rand(2,3)  # rand: uniform [0,1), float32
+torch.empty(2,3)                # uninitialised garbage values
+torch.manual_seed(1789)         # reproducible random numbers</div>
+    <h3>Attributes</h3>
+    <p><code>.shape</code> (torch.Size), <code>.dtype</code> (int8/16/32/64, float32/64, bool…), <code>.device</code> (cpu / cuda / mps). Move with <code>t.to("cuda")</code>. On Apple Silicon use <code>mps</code>.</p>
+    <h3>Indexing & ops</h3>
+    <ul>
+      <li><code>t[0]</code> first row, <code>t[:,0]</code> first column, <code>t[:,-1]</code> last column, <code>t[:,1]=0</code> sets column 2.</li>
+      <li><code>*</code> element-wise, <code>@</code> / <code>torch.matmul</code> matrix multiply.</li>
+      <li><code>torch.clamp(a,-0.5,0.5)</code> clips values. <code>abs, ceil, floor, sin, asin</code>.</li>
+      <li>Reductions: <code>max, mean, std</code> (unbiased, divides by n−1), <code>prod</code>, <code>unique</code>. <code>.item()</code> → Python number.</li>
+      <li><code>torch.eq(a,b)</code> → bool tensor. <code>bitwise_xor([1,5,11],[2,7,10]) = [3,2,1]</code>.</li>
+    </ul>
+    <h3>Broadcasting rules (compare from the LAST dim)</h3>
+    <p>Each pair of dims must be <b>equal</b>, or <b>one of them is 1</b>, or <b>one is missing</b>. Example: (4,3,2) works with (3,2), (4,1,2) and (1,3,2); it fails with (2,3).</p>
+    <h3>Shape manipulation</h3>
+    <div class="formula">torch.reshape(a,(2,2))   x.view(1,256)     # 16x16 → 1x256
+b.unsqueeze(0)  (56,56) → (1,56,56)      # add a dim (batch)
+d.squeeze(0)    (1,20)  → (20,)          # remove a size-1 dim
+torch.cat((x,y,z), dim=0)  three (2,3) → (6,3)</div>
+    <h3>In-place & copies</h3>
+    <ul>
+      <li>An underscore suffix means in-place: <code>a.add_(b)</code>, <code>torch.sin_(b)</code>, <code>b.mul_(b)</code>.</li>
+      <li><code>out=</code> writes into an existing tensor (<code>c is d</code> is True, same id).</li>
+      <li><code>b = a</code> is just another label (changes show in both). <code>b = a.clone()</code> is a real copy.</li>
+      <li><code>from_numpy</code> / <code>.numpy()</code> share memory, so changing one changes the other.</li>
+    </ul>
+    <div class="trap"><b>Trap:</b> <code>torch.std([[1,2],[3,4]]) = 1.291</code> (sample std), not 1.118. The default dtype from Python ints is <b>int64</b> and from floats is <b>float32</b>.</div>
+  </section>
+
+  <!-- ───────── 3 DT ───────── -->
+  <section id="dt" class="card">
+    <h2>3 · Exploratory Decision Trees (Breast Cancer Wisconsin)</h2>
+    <p><b>Data:</b> <code>load_breast_cancer()</code>: 569 samples, 30 features (10 nucleus measurements × {mean, standard error, worst}). Target 0 = malignant (212, 37.3%), 1 = benign (357, 62.7%). <b>Always-benign baseline ≈ 63% accuracy.</b> Split 80/20, <code>stratify=y</code>, random_state=42.</p>
+    <h3>Impurity</h3>
+    <div class="formula">Gini    = 1 − Σ pᵢ²             (CART, sklearn default)
+Entropy = − Σ pᵢ log₂ pᵢ        (ID3 / C4.5, information gain)
+Info Gain = H(parent) − Σ (nₖ/n)·H(childₖ)
+50/50 node: Gini 0.5, Entropy 1   |  pure node: both 0
+(0.25,0.75): Gini 0.375, Entropy 0.811</div>
+    <p>sklearn is <b>CART</b>-based, and entropy is just an option via <code>criterion</code>. In the lab both gave 0.9123 accuracy but different depths (7 vs 6), so they behave similarly but are not identical.</p>
+    <h3>Depth sweep (max_depth 1 → 20)</h3>
+    <p>Train accuracy climbs to 100%. Test accuracy peaks at a moderate depth and then plateaus or drops. <b>The gap is overfitting.</b> Depth 1 (a stump) underfits.</p>
+    <h3>Pruning</h3>
+    <ul>
+      <li><code>max_depth</code> = <b>pre-pruning</b> (early stopping).</li>
+      <li><code>ccp_alpha</code> = <b>post-pruning</b> (cost-complexity): grow the full tree, then trim. α = 0 means no pruning; larger α means a smaller tree, down to a single leaf.</li>
+      <li><code>clf.cost_complexity_pruning_path(X_train, y_train).ccp_alphas</code> gives the candidate alphas (drop the last one, which is the single-node tree).</li>
+    </ul>
+    <h3>Evaluation & selection</h3>
+    <ul>
+      <li>Confusion matrix: in cancer, a <b>false negative</b> (missed malignant) is the costly error. Accuracy alone hides this.</li>
+      <li><code>GridSearchCV</code> (5-fold) over criterion × max_depth. CV averages over folds, so it is more trustworthy than the best score on a single test split (which can be luck).</li>
+      <li><b>Feature importance</b> = total impurity decrease, weighted by the samples reaching the node. The root feature dominates.</li>
+      <li>radius, perimeter and area are highly correlated (they all measure size). Trees need <b>no scaling</b>.</li>
+    </ul>
+  </section>
+
+  <!-- ───────── 4 KNN ───────── -->
+  <section id="knn" class="card">
+    <h2>4 · Model Selection: Decision Tree vs kNN (Week 4)</h2>
+    <p>Tune hyperparameters three ways (manual grid search, <code>GridSearchCV</code>, <code>RandomizedSearchCV</code>) on at least 2 datasets: <b>Wine Quality</b> (good if quality &gt; 5), <b>HR Attrition</b> (get_dummies, drop_first=True), <b>Banknote</b> (4 features), <b>QSAR Biodegradation</b> (RB = 1). Split 70/30, stratified.</p>
+    <h3>Pipeline</h3>
+    <div class="formula">Pipeline([('scaler', StandardScaler()),
+          ('feature_selection', SelectKBest(f_classif, k=...)),
+          ('classifier', KNeighborsClassifier())])
+param_grid = {'scaler': [StandardScaler(), MinMaxScaler()],
+              'feature_selection__k': [...],      # ≤ n_features!
+              'classifier__n_neighbors': [...]}    # step__param (double underscore)</div>
+    <ul>
+      <li>A pipeline <b>prevents leakage</b>: the scaler and selector are fit only on the training folds.</li>
+      <li><code>f_classif</code> = ANOVA F-test score per feature.</li>
+      <li>StandardScaler → mean 0, std 1. MinMaxScaler → [0, 1].</li>
+    </ul>
+    <h3>Three parts</h3>
+    <ol>
+      <li><b>Manual:</b> <code>itertools.product</code> over the grid. For each combination, 5-fold <code>StratifiedKFold</code>: fit on the fold, take <code>predict_proba[:,1]</code>, compute ROC AUC, average. Keep the best, then refit on the full train set.</li>
+      <li><b>GridSearchCV</b>(pipe, grid, <code>scoring='roc_auc'</code>, cv=StratifiedKFold(5), <code>n_jobs=-1</code>). Time it. Outputs <code>best_estimator_</code> (refit on all train), <code>best_params_</code>, <code>best_score_</code> (mean CV score).</li>
+      <li><b>RandomizedSearchCV</b> with <code>n_iter=10</code> and <code>scipy.stats.randint</code> distributions. Faster, may miss the optimum.</li>
+    </ol>
+    <p>Total fits = combinations × folds. Example: 2×3×4 = 24 combinations × 5 folds = 120.</p>
+    <h3>kNN vs Decision Tree</h3>
+    <ul>
+      <li>kNN is <b>distance-based</b>, so it is very sensitive to scaling. It is a non-parametric lazy learner. Small k overfits, large k underfits.</li>
+      <li>Decision trees use threshold splits, so they are <b>scale-invariant</b>.</li>
+    </ul>
+    <h3>Voting</h3>
+    <p>Hard voting = majority of labels. Soft voting = average the probabilities. In the manual vote, <code>1 if mean(votes) &gt; 0.5 else 0</code>, so a 1–1 tie between two models becomes <b>0</b>.</p>
+    <p><b>ROC</b> = TPR vs FPR across thresholds. AUC 0.5 = random, 1 = perfect.</p>
+  </section>
+
+  <!-- ───────── 5 LOGREG ───────── -->
+  <section id="logreg" class="card">
+    <h2>5 · Linear vs Logistic Regression (Week 5)</h2>
+    <h3>Part 1: toy data (hours studied → pass)</h3>
+    <p>20 points in x ∈ [0, 10] with y = 1 if x &gt; 5, plus an <b>outlier at x = 50, y = 1</b>.</p>
+    <ul>
+      <li><b>Linear regression:</b> the outlier pulls the line, so the 0.5 crossing shifts and normal points get misclassified. Outputs also go outside [0, 1].</li>
+      <li><b>Logistic regression</b> (random_state=42): the sigmoid is bounded in (0, 1), and the boundary stays near x = 5. It is robust. Use <code>predict_proba(X)[:,1]</code>.</li>
+    </ul>
+    <div class="formula">σ(z) = 1 / (1 + e^(−z))      σ(0) = 0.5
+P(y=1|x) = σ(w·x + b)     log-odds  log(p/(1−p)) = w·x + b  (linear boundary)
+Loss = log-loss / binary cross-entropy = −[y log p + (1−y) log(1−p)]
+odds = p/(1−p)   (p = 0.8 → odds 4)</div>
+    <p>sklearn default: L2 penalty, C = 1.0 (C = 1/regularisation strength).</p>
+    <h3>Part 2: Wine Quality pipeline</h3>
+    <div class="formula">Pipeline([('scaler', StandardScaler()),
+          ('feature_selection', SelectKBest(f_classif, k=8)),
+          ('classifier', LogisticRegression(random_state=42))])</div>
+    <h3>Thresholds 0.3 / 0.5 / 0.7</h3>
+    <ul>
+      <li><b>Lower threshold</b> → more predicted positives → <b>recall ↑, precision ↓</b>.</li>
+      <li><b>Higher threshold</b> → fewer positives → <b>precision ↑, recall ↓</b>.</li>
+      <li>Threshold 0 → recall = 1. <code>zero_division=0</code> handles the case where nothing is predicted positive.</li>
+    </ul>
+  </section>
+
+  <!-- ───────── 6 ANN ───────── -->
+  <section id="ann" class="card">
+    <h2>6 · Neural Network from Scratch (NumPy, Week 6)</h2>
+    <p>Approximate a noisy polynomial. Type = <b>last 3 SRN digits % 5</b>: quadratic, cubic, quartic, cubic + sin, or cubic + inverse. Architecture = <b>% 4</b>: (64,64, lr 0.001), (32,72, lr 0.005), (72,32, lr 0.001) or (96,96, lr 0.003). 100,000 samples, x ∈ [−100, 100], split 80/20. <b>Both x and y are standardised</b> (otherwise huge values make gradients explode). Predictions are converted back with <code>inverse_transform</code>.</p>
+    <h3>Architecture</h3>
+    <p>Input(1) → Hidden1 (ReLU) → Hidden2 (ReLU) → Output(1) with a <b>linear output</b> (regression). Without activations the whole network collapses to one linear model.</p>
+    <div class="formula">relu(z) = max(0, z)           relu'(z) = 1 if z > 0 else 0
+MSE = mean((y − ŷ)²)
+Xavier: W ~ N(0, sqrt(2/(fan_in + fan_out))),  biases = 0
+W1:(1,h1)  W2:(h1,h2)  W3:(h2,1)
+Params (1→64→64→1) = 128 + 4160 + 65 = 4353</div>
+    <h3>Forward / backward</h3>
+    <div class="formula">z1 = X@W1 + b1;  a1 = relu(z1)
+z2 = a1@W2 + b2; a2 = relu(z2)
+z3 = a2@W3 + b3  (= ŷ)
+
+dŷ  = 2(ŷ − y)/m           dW3 = a2.T @ dŷ     db3 = sum(dŷ, axis=0)
+da2 = dŷ @ W3.T            dz2 = da2 * relu'(z2)
+dW2 = a1.T @ dz2           da1 = dz2 @ W2.T    dz1 = da1 * relu'(z1)
+dW1 = X.T @ dz1
+W ← W − lr·dW               (gradient descent)</div>
+    <ul>
+      <li>Training is <b>full-batch</b>: every epoch uses the whole X_train. <b>Early stopping</b> with patience 10 stops after 10 epochs without test-loss improvement and keeps the best weights.</li>
+      <li>Learning rate too high → loss oscillates or diverges. Too low → slow.</li>
+      <li>Too-small initial weights → vanishing gradients; too large → exploding. ReLU reduces vanishing gradients (sigmoid's max gradient is 0.25). <b>Dying ReLU</b> = a neuron that always outputs 0 and never learns again.</li>
+      <li>R² = 1 − SS_res/SS_tot (1 = perfect, 0 = no better than the mean).</li>
+      <li>Part B: run 4 experiments changing lr / batch size / epochs / activation, and record them in a results table.</li>
+    </ul>
+  </section>
+
+  <!-- ───────── 7 NB ───────── -->
+  <section id="nb" class="card">
+    <h2>7 · Naive Bayes: From Scratch to Bayes Optimal</h2>
+    <p><b>Task:</b> PubMed 20k RCT. Classify each abstract sentence as <b>BACKGROUND, OBJECTIVE, METHODS, RESULTS or CONCLUSIONS</b>. There are 180,040 training sentences, the classes are imbalanced, and the data comes pre-split into train, dev and test.</p>
+    <h3>Model</h3>
+    <div class="formula">ĉ = argmax_c P(c)·Π P(wᵢ|c)^xᵢ          (P(x) dropped: same for all classes)
+log space: score(c) = log P(c) + Σ xᵢ log P(wᵢ|c)
+P(c) = N_c / N                          (counts DOCUMENTS, not words)
+P(w|c) = (count(w,c) + α) / (Σ count(·,c) + α·V)    V = vocab size
+scores = X @ feature_log_prob_.T + class_log_prior_  (no loops)</div>
+    <ul>
+      <li><b>Naive assumption:</b> words are conditionally independent given the class. It is false, but NB still classifies well because only the ranking (argmax) matters. Its probabilities are overconfident.</li>
+      <li><b>Log space</b> avoids underflow (25 words ≈ 10⁻¹²⁵ → 0.0). log is monotone, so the argmax is unchanged.</li>
+      <li><b>Smoothing:</b> without it, an unseen word gives P = 0, log = −∞, and the class is eliminated. α = 1 is <b>Laplace</b>; α &lt; 1 is <b>Lidstone</b>. Forgetting the αV term gives an invalid distribution, but accuracy may barely change.</li>
+      <li><b>Verification:</b> match sklearn <code>MultinomialNB</code> (<code>class_log_prior_</code>, <code>feature_log_prob_</code>) to a max difference &lt; 1e-10. Check this before looking at accuracy.</li>
+      <li><code>CountVectorizer(lowercase=True, strip_accents="unicode", stop_words="english", ngram_range=(1,1), min_df=2)</code>. <b>Fit on train only</b>; transform dev and test.</li>
+    </ul>
+    <h3>Experiments</h3>
+    <ul>
+      <li>α sweep [0.01, 0.1, 0.5, 1, 2] on <b>dev</b> using macro-F1, plotted on a log x-axis. Test is used only after α is fixed.</li>
+      <li><b>TF-IDF</b> = tf × log(N/df). Very common words get weight ≈ 0. TF-IDF is not counts, so using it with multinomial NB is justified empirically, not by theory. <code>ngram_range=(1,2)</code> adds bigrams like "double blind".</li>
+      <li>GridSearchCV (3-fold, macro-F1) over n-grams × α.</li>
+    </ul>
+    <h3>Bayes Optimal Classifier (Part C)</h3>
+    <div class="formula">P(c|x,D) = Σ_h P(c|x,h)·P(h|D)        uniform prior ⇒ P(h|D) ∝ P(D_held|h)</div>
+    <ul>
+      <li>No classifier with the same hypothesis space and prior can do better on average. It can't be computed exactly because H is infinite, so the lab approximates it with 4 models: NB, LR, DT and RF.</li>
+      <li>Weights = softmax of the mean held-out log-likelihood. <b>Clip</b> probabilities first (log 0 = −∞) and <b>subtract the max</b> before exp (to avoid overflow). Using the summed log-likelihood instead gives near one-hot weights.</li>
+      <li><code>VotingClassifier(voting="soft", weights=posterior_weights)</code>, compared against each individual model.</li>
+    </ul>
+    <p><b>Metric:</b> <b>macro-F1</b> = unweighted mean of the per-class F1 scores, so rare classes count equally. In a row-normalised confusion matrix, the diagonal is recall. <b>Protocol:</b> train fits, dev selects, test is scored once.</p>
+  </section>
+
+  <!-- ───────── 8 SVM ───────── -->
+  <section id="svm" class="card">
+    <h2>8 · Support Vector Machines (Week 10)</h2>
+    <p>SVM finds the <b>maximum-margin hyperplane</b> <code>w·x + b = 0</code>. Margin width = <b>2/‖w‖</b>. <b>Support vectors</b> are the points on or inside the margin; only they define the boundary. Loss = hinge, <code>max(0, 1 − y·f(x))</code>.</p>
+    <h3>Kernels (kernel trick: inner products in a higher-dimensional space without mapping explicitly)</h3>
+    <div class="tablewrap"><table>
+      <tr><th>Kernel</th><th>Formula</th><th>Boundary</th></tr>
+      <tr><td>linear</td><td>x·x'</td><td>straight line</td></tr>
+      <tr><td>rbf (SVC default)</td><td>exp(−γ‖x−x'‖²)</td><td>flexible curves/circles; high γ → wiggly, overfits</td></tr>
+      <tr><td>poly (degree = 3 default)</td><td>(γ x·x' + r)^d</td><td>polynomial curve</td></tr>
+    </table></div>
+    <h3>The three parts</h3>
+    <ol>
+      <li><b>Moons</b>: <code>make_moons(n_samples=500, noise=0.2, random_state=42)</code>, split 70/30, StandardScaler. The data is non-linear, so <b>Linear does worst</b> and <b>RBF fits the shape most naturally</b>.</li>
+      <li><b>Banknote</b>: only <code>variance</code> and <code>skewness</code> are used (so the boundary can be plotted in 2-D), stratified split. The data is nearly linearly separable, so linear and RBF do well and <b>poly underperforms</b> (its extra curvature doesn't fit the data's shape).</li>
+      <li><b>Hard vs soft margin</b>: <code>make_blobs(100, centers=2, cluster_std=0.6)</code> plus 2 outliers, with <code>SVC(kernel='linear', C=…, random_state=42)</code>.</li>
+    </ol>
+    <div class="tablewrap"><table>
+      <tr><th></th><th>Soft margin, C = 0.1</th><th>Hard margin, C = 100</th></tr>
+      <tr><td>Margin</td><td><b>wider</b></td><td>narrower</td></tr>
+      <tr><td>Errors allowed</td><td>yes (slack ξ)</td><td>tries to classify everything</td></tr>
+      <tr><td>Risk</td><td>may underfit slightly</td><td><b>overfits</b> to outliers</td></tr>
+      <tr><td>Preferred for noisy data</td><td>✔ (generalises better)</td><td></td></tr>
+    </table></div>
+    <ul>
+      <li><b>Scaling is crucial</b>: the margin and RBF depend on distances.</li>
+      <li>The <code>plot_decision_boundaries</code> helper builds a meshgrid (h = 0.02), predicts every grid point, and draws a contourf.</li>
+      <li>SVC handles multi-class internally with <b>one-vs-one</b>.</li>
+      <li>Submission: 8 plots + 6 classification reports with your SRN, and 8 analysis questions.</li>
+    </ul>
+  </section>
+
+  <!-- ───────── 9 HMM ───────── -->
+  <section id="hmm" class="card">
+    <h2>9 · Hidden Markov Models (Week 11)</h2>
+    <p>λ = (A, B, π). <b>Hidden states</b> can't be seen; we see <b>observations</b> emitted by them. Markov property: the next state depends only on the current one. Rows of A and of B each sum to 1.</p>
+    <h3>Lab variable names (weather HMM)</h3>
+    <div class="tablewrap"><table>
+      <tr><td><code>avocado</code></td><td>transition matrix A</td><td><code>kangaroo</code></td><td>emission matrix B</td></tr>
+      <tr><td><code>bubblegum</code></td><td>initial distribution π</td><td><code>mushroom</code></td><td>hidden states (6 weathers)</td></tr>
+      <tr><td><code>spaceship</code></td><td>observation symbols</td><td><code>cheese / jellybean</code></td><td># states / # observations</td></tr>
+      <tr><td><code>skateboard</code></td><td>input observation sequence</td><td><code>rat / mouse</code></td><td>Viterbi output / expected</td></tr>
+    </table></div>
+    <p>States: Clear Skies, Partly Cloudy, Overcast, Rainy, Stormy, Snowy. Observations: Temperature Rise, Drop in Barometric Pressure, High Wind Speed, Increased Humidity, Thunder Heard, Heavy Snowfall.</p>
+    <h3>Algorithms (dynamic programming, O(N²T) instead of brute-force N^T)</h3>
+    <div class="formula">Init (both):   δ₁(i) = πᵢ · bᵢ(o₁)
+Forward:  αₜ(j) = [Σᵢ αₜ₋₁(i)·aᵢⱼ] · bⱼ(oₜ)     P(O|λ) = Σᵢ α_T(i)   → likelihood
+Viterbi:  δₜ(j) = maxᵢ[δₜ₋₁(i)·aᵢⱼ] · bⱼ(oₜ)   + backpointer = argmax   → best path
+          end: argmax δ_T, then follow backpointers back to t = 1</div>
+    <p><b>Viterbi = max, Forward = sum.</b> For long sequences, use log probabilities to avoid underflow.</p>
+    <p>Test: [Temp Rise, Humidity, High Wind, Pressure Drop] → <b>[Clear Skies, Rainy, Overcast, Clear Skies]</b>. (δ₁: Clear Skies = 0.2 × 0.4 = 0.08 is the largest.) Implement with PyTorch, using DP only and no hard-coding. Run <code>python3 test.py --ID CAMPUS_SECTION_SRN_Week11</code>.</p>
+    <h3>hmmlearn demo (robot)</h3>
+    <ul>
+      <li>States: Charging, Navigating, Exploring. Observations: idle, move, scan. π = [0.3, 0.4, 0.3]; A[Charging→Navigating] = 0.8.</li>
+      <li><code>hmm.MultinomialHMM(n_components=3, n_iter=50, init_params='')</code> uses the parameters you set manually. <code>init_params='ste'</code> auto-initialises <b>s</b>tart, <b>t</b>ransition and <b>e</b>mission.</li>
+      <li><code>.fit()</code> learns the parameters with <b>Baum–Welch (EM)</b>. <code>.decode()</code> returns (log prob, Viterbi states).</li>
+      <li>Example: P(o₁ = scan) = Σ πᵢ·bᵢ(scan) = 0.3·0.33 + 0.4·0.7 + 0.3·0.44 = 0.511.</li>
+    </ul>
+  </section>
+
+  <!-- ───────── 10 CNN ───────── -->
+  <section id="cnn" class="card">
+    <h2>10 · CNN: Rock, Paper, Scissors (Week 14)</h2>
+    <p>Kaggle <code>drgfreeman/rockpaperscissors</code>, about 2,000+ images. <code>ImageFolder</code> labels images from the folder names, sorted: <b>['paper', 'rock', 'scissors']</b>.</p>
+    <div class="formula">device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+transform = Compose([Resize((128,128)), ToTensor(), Normalize((0.5,)*3, (0.5,)*3)])  # → [-1, 1]
+random_split 80/20;  DataLoader(batch_size=32, shuffle=True for train, False for test)
+
+conv: [Conv2d(3→16,k3,p1), ReLU, MaxPool(2)]  128→64
+      [Conv2d(16→32,k3,p1), ReLU, MaxPool(2)]  64→32
+      [Conv2d(32→64,k3,p1), ReLU, MaxPool(2)]  32→16
+fc:   Flatten → Linear(64·16·16 = 16384 → 256) → ReLU → Dropout(0.3) → Linear(256 → 3)
+criterion = nn.CrossEntropyLoss();  optimizer = Adam(lr=0.001);  EPOCHS = 10</div>
+    <ul>
+      <li>Output size = <b>(W − K + 2P)/S + 1</b>. With k = 3, p = 1, s = 1 the size is unchanged ("same" padding).</li>
+      <li>Conv params = out × (in × k × k) + out. Conv2d(3,16,3) = 432 + 16 = <b>448</b>. Pooling has no parameters.</li>
+      <li>ToTensor: HWC 0–255 → CHW 0–1. Input has 3 channels (RGB).</li>
+      <li><b>No softmax</b> at the end: CrossEntropyLoss takes raw logits (it applies log-softmax internally).</li>
+      <li>Training step: <code>zero_grad → outputs = model(x) → loss = criterion(outputs, y) → loss.backward() → optimizer.step()</code>. zero_grad is needed because gradients accumulate.</li>
+      <li>Eval: <code>model.eval()</code> turns off dropout. <code>with torch.no_grad()</code> stops gradient tracking. <code>_, pred = torch.max(outputs, 1)</code> gives the class indices.</li>
+      <li>Single image: <code>transform(img).unsqueeze(0)</code> adds the batch dimension (1, 3, 128, 128).</li>
+      <li>Batches per epoch = ceil(train / 32), e.g. 1750 → 55.</li>
+      <li>CNNs have fewer parameters thanks to <b>weight sharing and local connectivity</b>. To improve: data augmentation, more regularisation, BatchNorm, more epochs with validation.</li>
+    </ul>
+  </section>
+
+  <!-- ───────── METRICS ───────── -->
+  <section id="metrics" class="card">
+    <h2>★ Metrics & General Cheat-Sheet</h2>
+    <div class="formula">Confusion matrix (sklearn): [[TN, FP],
+                             [FN, TP]]    rows = actual, cols = predicted
+Accuracy  = (TP+TN)/total
+Precision = TP/(TP+FP)       "of predicted positives, how many are right"
+Recall    = TP/(TP+FN)  = TPR "of actual positives, how many found"
+FPR       = FP/(FP+TN)
+F1        = 2PR/(P+R)   (harmonic mean)     Macro-F1 = mean of per-class F1
+ROC: TPR vs FPR; AUC 0.5 = random, 1 = perfect</div>
+    <ul>
+      <li><b>Overfitting</b> = high train score, low test score (deep trees, large C, high γ, small k). <b>Underfitting</b> = both low.</li>
+      <li><b>Data leakage</b>: fit scalers, vectorizers and selectors on <b>train only</b>, and use a Pipeline inside CV.</li>
+      <li><b>Stratify</b> to keep class ratios in the splits/folds. <b>random_state=42</b> makes results reproducible.</li>
+      <li><b>Scale-sensitive</b>: kNN, SVM, LR, NN. <b>Scale-invariant</b>: decision trees.</li>
+      <li>Train / validation (dev) / test: choose hyperparameters on validation, report test once.</li>
+      <li>Imbalanced data: accuracy misleads, so use precision, recall, F1 and the confusion matrix.</li>
+    </ul>
+  </section>
+
+  <p class="noprint" style="text-align:center;margin-top:24px"><a class="btn primary" href="./" style="text-decoration:none">Done reading? Take a mock quiz →</a></p>
+</main>
+<footer class="foot">UE24CS352A · Notes compiled from the lab manuals &amp; notebooks</footer>
+<script>
+  (function () {
+    var root = document.documentElement;
+    try { var t = localStorage.getItem("mlquiz.theme"); if (t) root.setAttribute("data-theme", t); } catch (e) {}
+    document.getElementById("themeToggle").onclick = function () {
+      var cur = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      var next = cur === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("mlquiz.theme", next); } catch (e) {}
+    };
+  })();
+</script>
+</body>
+</html>
