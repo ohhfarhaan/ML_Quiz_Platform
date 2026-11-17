@@ -139,3 +139,55 @@ h2 { font-size: 20px; margin: 28px 0 12px; }
 body { overflow-x: hidden; }
 .container, .card, .opt span, .qtext { min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 420px) { .stats { grid-template-columns: 1fr 1fr 1fr; gap: 6px; } .stat .v { font-size: 18px; } }
+
+/* ---------- study notes ---------- */
+
+    .notes h2 { margin-top: 0; font-size: 22px; letter-spacing: -.01em; }
+    .notes section { scroll-margin-top: 70px; margin: 18px 0; }
+    .notes h3 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); margin: 16px 0 6px; }
+    .notes ul { margin: 4px 0 8px; padding-left: 20px; }
+    .notes li { margin: 3px 0; }
+    .notes p { margin: 6px 0; }
+    .formula { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 14px; background: var(--surface-2); border-radius: 8px; padding: 8px 12px; margin: 6px 0; overflow-x: auto; white-space: pre; }
+    .trap { border-left: 4px solid var(--warn); background: var(--surface-2); padding: 8px 12px; border-radius: 8px; margin: 10px 0 2px; font-size: 15px; }
+    .trap b { color: var(--warn); }
+    .toc { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); gap: 8px; }
+    .toc a { display: block; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); text-decoration: none; font-size: 15px; }
+    .toc a:hover { border-color: var(--accent); }
+    .toc a span { color: var(--muted); font-size: 13px; display: block; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 8px 0; }
+    th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background: var(--surface-2); }
+    .tablewrap { overflow-x: auto; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 22px; }
+    .actions a { text-decoration: none; }
+    .back { font-size: 14px; }
+    @media print {
+      :root { --bg:#fff; --surface:#fff; --surface-2:#f2f3f7; --text:#111; --muted:#555; --border:#ddd; --accent:#3b35c9; --warn:#a15c00; --shadow:none; }
+      .topbar, .actions, .foot, .back, .noprint { display: none !important; }
+      body { font-size: 12px; background: #fff; }
+      .container { max-width: none; padding: 0; }
+      .card { box-shadow: none; padding: 12px 14px; break-inside: auto; }
+      .notes section { page-break-before: always; margin: 0; }
+      .notes section:first-of-type { page-break-before: auto; }
+      .formula, .trap, table, pre { break-inside: avoid; }
+      .formula { font-size: 11px; }
+      h1 { font-size: 24px; }
+      .toc a { padding: 6px 8px; }
+    }
+  
+/* ---------- tabs, chips, lab buttons ---------- */
+.tabs { display: inline-flex; gap: 4px; padding: 4px; background: var(--surface-2); border-radius: 12px; margin-bottom: 10px; }
+.tab { font: inherit; font-weight: 600; font-size: 15px; border: none; background: none; color: var(--muted); padding: 8px 14px; border-radius: 9px; cursor: pointer; }
+.tab.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
+.chip { font: inherit; font-size: 13px; font-weight: 500; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+.chip:hover { border-color: var(--accent); }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.lab { cursor: default; }
+.labbtns { display: flex; gap: 8px; margin-top: 12px; }
+.labbtns .btn { flex: 1; }
+.btn.sm { padding: 7px 10px; font-size: 14px; }
+.notescta { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 16px; width: 100%; text-align: left; font: inherit; color: var(--text); cursor: pointer; }
+.notescta:hover { border-color: var(--accent); }
+@media print { .tabs, .chips, .nav, .kbd { display: none !important; } }

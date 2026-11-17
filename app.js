@@ -65,24 +65,28 @@
   let timerId = null;
   let keyHandler = null;
   const stopTimer = () => { if (timerId) clearInterval(timerId); timerId = null; };
-  // ---------- browser history (back button / swipe-back returns home) ----------
-  const inSession = () => history.state && history.state.view === "session";
+  // ---------- browser history (back button / swipe-back) ----------
+  // Every in-app screen (quiz session, notes) is a history entry with a depth,
+  // so Back steps back one screen and Home jumps all the way back.
+  const depth = () => (history.state && history.state.depth) || 0;
+  const push = (view, extra) => history.pushState({ view, depth: depth() + 1, ...extra }, "", "#" + view);
   const enterSession = () => {
-    if (inSession()) history.replaceState({ view: "session" }, "", "#quiz");
-    else history.pushState({ view: "session" }, "", "#quiz");
+    if (history.state && history.state.view === "quiz") history.replaceState(history.state, "", "#quiz");
+    else push("quiz");
   };
-  const goHome = () => { stopTimer(); if (inSession()) history.back(); else home(); };
+  const goHome = () => { stopTimer(); if (depth() > 0) history.go(-depth()); else home(); };
+  const mockInProgress = () => session && session.mode === "mock" && !session.submitted && session.qs.some(q => q.chosen !== null);
   window.addEventListener("popstate", () => {
-    if (session && session.mode === "mock" && !session.submitted && session.qs.some(q => q.chosen !== null)) {
-      if (!confirm("Leave the mock quiz? Your answers will be lost.")) {
-        history.pushState({ view: "session" }, "", "#quiz");
-        return;
-      }
+    const st = history.state;
+    if (st && st.view === "quiz" && session) { session.mode === "mock" ? (session.submitted ? null : renderMock()) : renderPractice(); return; }
+    if (mockInProgress() && !(st && st.view === "quiz")) {
+      if (!confirm("Leave the mock quiz? Your answers will be lost.")) { push("quiz"); return; }
     }
+    if (st && st.view === "notes") { notes(st.lab, true); return; }
     stopTimer();
     home();
   });
-  if (location.hash === "#quiz" || inSession()) history.replaceState(null, "", location.pathname + location.search);
+  if (location.hash || depth()) history.replaceState(null, "", location.pathname + location.search);
 
   const setKeys = fn => { if (keyHandler) document.removeEventListener("keydown", keyHandler); keyHandler = fn; if (fn) document.addEventListener("keydown", fn); };
 
@@ -98,14 +102,19 @@
       const qs = byLab(l.id);
       const done = qs.filter(q => progress[q.id] && progress[q.id].last).length;
       const pct = Math.round(100 * done / qs.length);
-      return `<button class="lab" data-lab="${l.id}">
+      return `<div class="lab">
         <div class="n">${l.name}</div>
         <div class="m">${qs.length} questions · ${done} correct</div>
         <div class="bar"><i style="width:${pct}%"></i></div>
-      </button>`;
+        <div class="labbtns">
+          <button class="btn sm" data-notes="${l.id}">📘 Notes</button>
+          <button class="btn sm primary" data-lab="${l.id}">Practice →</button>
+        </div>
+      </div>`;
     }).join("");
 
     html(`
+      ${tabs("home")}
       <h1>ML Lab Quiz — practice every 1-marker</h1>
       <p class="sub">${BANK.length} MCQs across all ${LABS.length} labs, each with an explanation. The questions were written from the lab manuals and notebooks.</p>
       <div class="card">
@@ -125,11 +134,11 @@
         <div class="stat"><div class="v">${mastered}</div><div class="l">last answered right</div></div>
         <div class="stat"><div class="v">${mistakes}</div><div class="l">to revisit</div></div>
       </div>
-      <a class="card" href="notes.html" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px;text-decoration:none;color:var(--text)">
-        <span><b>📘 Study notes for all labs</b><br><span class="muted" style="font-size:14px">Short summary of every lab: concepts, formulas, code, traps. PDF download available.</span></span>
+      <button class="card notescta" id="allnotes">
+        <span><b>📘 Study notes: every lab explained in short</b><br><span class="muted" style="font-size:14px">Concepts, formulas, code details and traps for all ${LABS.length} labs. Read here or download the PDF.</span></span>
         <span class="btn primary" style="flex:none">Read →</span>
-      </a>
-      <h2>Practise lab by lab</h2>
+      </button>
+      <h2>Lab by lab: read notes, then practise</h2>
       <div class="labs">${labCards}</div>
       <p class="kbd">Progress is saved in this browser only. ${attempted ? `<button class="linkbtn" id="reset">Reset progress</button>` : ""}</p>
     `);
@@ -138,12 +147,74 @@
     document.getElementById("rapid").onclick = () => startPractice("Rapid practice: all labs", shuffle(BANK));
     const mist = document.getElementById("mist");
     if (mistakes) mist.onclick = () => startPractice("Fix my mistakes", shuffle(BANK.filter(q => progress[q.id] && progress[q.id].last === false)));
-    $app.querySelectorAll(".lab").forEach(b => b.onclick = () => {
+    $app.querySelectorAll("[data-lab]").forEach(b => b.onclick = () => {
       const l = labById[b.dataset.lab];
       startPractice(l.name, shuffle(byLab(l.id)));
     });
+    $app.querySelectorAll("[data-notes]").forEach(b => b.onclick = () => notes(b.dataset.notes));
+    document.getElementById("allnotes").onclick = () => notes(null);
+    bindTabs();
     const reset = document.getElementById("reset");
     if (reset) reset.onclick = () => { if (confirm("Clear all saved progress?")) { progress = {}; save(progress); home(); } };
+  }
+
+  // ---------- tabs ----------
+  const tabs = active => `<nav class="tabs">
+      <button class="tab ${active === "home" ? "on" : ""}" data-tab="home">🧠 Quiz</button>
+      <button class="tab ${active === "notes" ? "on" : ""}" data-tab="notes">📘 Study Notes</button>
+    </nav>`;
+  const bindTabs = () => $app.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => {
+    if (b.classList.contains("on")) return;
+    b.dataset.tab === "home" ? goHome() : notes(null);
+  });
+
+  // ---------- study notes ----------
+  // lab = null → all notes; lab = id → that lab only. fromHistory = rendering because of Back/Forward.
+  function notes(lab, fromHistory) {
+    setKeys(null);
+    if (!fromHistory) push("notes", { lab: lab || null });
+    const ids = [...LABS.map(l => l.id), "metrics"];
+    const toc = ids.map(id => {
+      const l = labById[id];
+      const label = l ? l.short : "★ Metrics";
+      return `<button class="chip ${id === lab ? "on" : ""}" data-n="${id}">${label}</button>`;
+    }).join("");
+    const body = lab
+      ? `<section class="card">${NOTES[lab]}</section>`
+      : ids.map(id => `<section id="n-${id}" class="card">${NOTES[id]}</section>`).join("");
+    let footer = "";
+    if (lab) {
+      const i = ids.indexOf(lab), prev = ids[i - 1], next = ids[i + 1];
+      footer = `<div class="nav">
+        ${prev ? `<button class="btn" data-n="${prev}">← ${labById[prev] ? labById[prev].short : "Metrics"}</button>` : "<span></span>"}
+        ${labById[lab] ? `<button class="btn primary" data-practice="${lab}">Practise this lab →</button>` : ""}
+        ${next ? `<button class="btn" data-n="${next}">${labById[next] ? labById[next].short : "★ Metrics"} →</button>` : "<span></span>"}
+      </div>`;
+    }
+    html(`
+      ${tabs("notes")}
+      <div class="notes">
+        ${lab ? "" : `<h1>📘 Study Notes: all labs</h1>
+        <p class="sub noprint">Every lab in a few minutes: what it does, key concepts, formulas, code details and traps. Tap a lab to read only that one.</p>`}
+        <div class="actions noprint">
+          <a class="btn primary" href="ML_Lab_Notes.pdf" download>⬇ Download PDF</a>
+          ${lab ? `<button class="btn" data-all="1">All notes</button>` : ""}
+        </div>
+        <div class="chips noprint">${toc}</div>
+        ${body}
+        ${footer}
+      </div>
+    `);
+    bindTabs();
+    $app.querySelectorAll("[data-n]").forEach(b => b.onclick = () => {
+      // switching labs inside notes replaces the entry, so Back leaves notes
+      history.replaceState({ view: "notes", depth: depth(), lab: b.dataset.n }, "", "#notes");
+      notes(b.dataset.n, true);
+    });
+    const all = $app.querySelector("[data-all]");
+    if (all) all.onclick = () => { history.replaceState({ view: "notes", depth: depth(), lab: null }, "", "#notes"); notes(null, true); };
+    const pr = $app.querySelector("[data-practice]");
+    if (pr) pr.onclick = () => { const l = labById[pr.dataset.practice]; startPractice(l.name, shuffle(byLab(l.id))); };
   }
 
   // ---------- practice mode ----------
@@ -168,7 +239,7 @@
     html(`
       <div class="qhead">
         <span class="tag">${lab.short}</span>
-        <span class="qmeta">${s.title} · ${s.i + 1}/${s.qs.length} · Score ${s.correct}/${s.answered}</span>
+        <span class="qmeta">${s.title} · ${s.i + 1}/${s.qs.length} · Score ${s.correct}/${s.answered} · <button class="linkbtn" id="labnotes">📘 ${lab.short} notes</button></span>
       </div>
       <div class="progress"><i style="width:${100 * (s.i + (answered ? 1 : 0)) / s.qs.length}%"></i></div>
       <div class="card">
@@ -199,6 +270,7 @@
     document.getElementById("next").onclick = next;
     document.getElementById("prev").onclick = () => { s.i--; renderPractice(); };
     document.getElementById("quit").onclick = goHome;
+    document.getElementById("labnotes").onclick = () => notes(q.lab);
     setKeys(e => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
