@@ -58,13 +58,32 @@
     applyTheme(next);
     try { localStorage.setItem("mlquiz.theme", next); } catch {}
   };
-  document.getElementById("homeLink").onclick = e => { e.preventDefault(); stopTimer(); home(); };
+  document.getElementById("homeLink").onclick = e => { e.preventDefault(); goHome(); };
 
   // ---------- state ----------
   let session = null; // { mode, title, qs, i, endsAt? }
   let timerId = null;
   let keyHandler = null;
   const stopTimer = () => { if (timerId) clearInterval(timerId); timerId = null; };
+  // ---------- browser history (back button / swipe-back returns home) ----------
+  const inSession = () => history.state && history.state.view === "session";
+  const enterSession = () => {
+    if (inSession()) history.replaceState({ view: "session" }, "", "#quiz");
+    else history.pushState({ view: "session" }, "", "#quiz");
+  };
+  const goHome = () => { stopTimer(); if (inSession()) history.back(); else home(); };
+  window.addEventListener("popstate", () => {
+    if (session && session.mode === "mock" && !session.submitted && session.qs.some(q => q.chosen !== null)) {
+      if (!confirm("Leave the mock quiz? Your answers will be lost.")) {
+        history.pushState({ view: "session" }, "", "#quiz");
+        return;
+      }
+    }
+    stopTimer();
+    home();
+  });
+  if (location.hash === "#quiz" || inSession()) history.replaceState(null, "", location.pathname + location.search);
+
   const setKeys = fn => { if (keyHandler) document.removeEventListener("keydown", keyHandler); keyHandler = fn; if (fn) document.addEventListener("keydown", fn); };
 
   // ---------- home ----------
@@ -106,6 +125,10 @@
         <div class="stat"><div class="v">${mastered}</div><div class="l">last answered right</div></div>
         <div class="stat"><div class="v">${mistakes}</div><div class="l">to revisit</div></div>
       </div>
+      <a class="card" href="notes.html" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px;text-decoration:none;color:var(--text)">
+        <span><b>📘 Study notes for all labs</b><br><span class="muted" style="font-size:14px">Short summary of every lab: concepts, formulas, code, traps. PDF download available.</span></span>
+        <span class="btn primary" style="flex:none">Read →</span>
+      </a>
       <h2>Practise lab by lab</h2>
       <div class="labs">${labCards}</div>
       <p class="kbd">Progress is saved in this browser only. ${attempted ? `<button class="linkbtn" id="reset">Reset progress</button>` : ""}</p>
@@ -125,6 +148,7 @@
 
   // ---------- practice mode ----------
   function startPractice(title, qs) {
+    enterSession();
     session = { mode: "practice", title, qs: qs.map(prep), i: 0, correct: 0, answered: 0 };
     renderPractice();
   }
@@ -174,7 +198,7 @@
     $app.querySelectorAll(".opt").forEach(b => b.onclick = () => choose(+b.dataset.pos));
     document.getElementById("next").onclick = next;
     document.getElementById("prev").onclick = () => { s.i--; renderPractice(); };
-    document.getElementById("quit").onclick = home;
+    document.getElementById("quit").onclick = goHome;
     setKeys(e => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
@@ -200,7 +224,7 @@
         </div>
       </div>
     `);
-    document.getElementById("h").onclick = home;
+    document.getElementById("h").onclick = goHome;
     document.getElementById("again").onclick = () => startPractice(s.title, shuffle(s.qs.map(q => BANK.find(b => b.id === q.id))));
   }
 
@@ -210,6 +234,7 @@
     let qs = [];
     for (const l of LABS) qs.push(...shuffle(byLab(l.id)).slice(0, 2));
     qs = shuffle(qs).map(prep);
+    enterSession();
     session = { mode: "mock", title: "Mock quiz", qs, i: 0, endsAt: Date.now() + 30 * 60 * 1000 };
     stopTimer();
     timerId = setInterval(tick, 1000);
@@ -332,7 +357,7 @@
       </div>
       ${review}
     `);
-    document.getElementById("h").onclick = home;
+    document.getElementById("h").onclick = goHome;
     document.getElementById("again").onclick = startMock;
     document.getElementById("onlyWrong").onchange = e => {
       $app.querySelectorAll(".review-item").forEach(el => { el.style.display = e.target.checked && el.dataset.ok === "true" ? "none" : ""; });
